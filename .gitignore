@@ -1,0 +1,4 @@
+#ignore custom user data
+HomePwner/HomePwner.xcodeproj/project.xcworkspace
+HomePwner/HomePwner.xcodeproj/xcuserdata
+
