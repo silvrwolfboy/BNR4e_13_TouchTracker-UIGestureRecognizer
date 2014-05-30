@@ -103,6 +103,18 @@
     return nil;
 }
 
+- (void)deleteLine:(id)sender
+{
+    if (!self.selectedLine)
+        return;
+    
+    // remove line from _finishedLines
+    [self.finishedLines removeObject:self.selectedLine];
+    
+    // redraw everything
+    [self setNeedsDisplay];
+}
+
 #pragma mark - Responder Touch events
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
@@ -166,7 +178,12 @@
     [self setNeedsDisplay];
 }
 
-#pragma mark - Gesture Actions
+#pragma mark - Responder Actions
+- (BOOL)canBecomeFirstResponder
+{
+    return YES;
+}
+
 - (void)doubleTap:(UIGestureRecognizer *)gr
 {
     NSLog(@"Recognized double tap");
@@ -183,7 +200,31 @@
     CGPoint point = [gr locationInView:self];
     self.selectedLine = [self lineAtPoint:point];
     
+    if (self.selectedLine) {
+        // make ourselves the target of menu item action messages
+        [self becomeFirstResponder];
+        
+        // grab menu controller
+        UIMenuController *menu = [UIMenuController sharedMenuController];
+        
+        // create a new 'Delete' UIMenuItem
+        UIMenuItem *deleteItem = [[UIMenuItem alloc] initWithTitle:@"Delete"
+                                                            action:@selector(deleteLine:)];
+        // set the array
+        menu.menuItems = @[deleteItem];
+        
+        // tell menu where it should be displayed
+        [menu setTargetRect:CGRectMake(point.x, point.y, 2,2) inView:self];
+        [menu setMenuVisible:YES animated:YES];
+    } else {
+        // hide menu if no line selected
+        [[UIMenuController sharedMenuController] setMenuVisible:NO animated:YES];
+    }
+    
+    
     [self setNeedsDisplay];
 }
+
+
 
 @end
