@@ -14,6 +14,7 @@
 @property (nonatomic, strong) NSMutableArray *finishedLines;
 @property (nonatomic, weak) BNRLine *selectedLine;
 @property (nonatomic, strong) UIPanGestureRecognizer *moveRecognizer;
+@property (nonatomic, strong) UILongPressGestureRecognizer *longPressRecognizer;
 @end
 
 @implementation BNRDrawView
@@ -41,9 +42,9 @@
         [tapRecognizer requireGestureRecognizerToFail:doubleTapRecognizer];
         [self addGestureRecognizer:tapRecognizer];
         
-        UILongPressGestureRecognizer *pressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
-                                                                                                      action:@selector(longPress:)];
-        [self addGestureRecognizer:pressRecognizer];
+        self.longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+                                                                             action:@selector(longPress:)];
+        [self addGestureRecognizer:self.longPressRecognizer];
         
         self.moveRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self
                                                                       action:@selector(moveLine:)];
@@ -113,37 +114,6 @@
     
     // no line close enough
     return nil;
-}
-
-- (void)moveLine:(UIPanGestureRecognizer *)gr
-{
-    // if we haven't selected a line, don't do anything here
-    if (!self.selectedLine) {
-        return;
-    }
-    
-    // when pan recognizer changes its position...
-    if (gr.state == UIGestureRecognizerStateChanged) {
-        // how far has pan moved
-        CGPoint translation =  [gr translationInView:self];
-        
-        // add translation to current beginning and end points of line
-        CGPoint begin = self.selectedLine.begin;
-        CGPoint end = self.selectedLine.end;
-        begin.x += translation.x;
-        begin.y += translation.y;
-        end.x += translation.x;
-        end.y += translation.y;
-        
-        // set the new beginning and end points of line
-        self.selectedLine.begin = begin;
-        self.selectedLine.end = end;
-        
-        // redraw
-        [self setNeedsDisplay];
-        
-        [gr setTranslation:CGPointZero inView:self];
-    }
 }
 
 - (void)strokeLine:(BNRLine *)line
@@ -228,6 +198,7 @@
     return YES;
 }
 
+// action-message for DoubleTapGestureRecognizer
 - (void)doubleTap:(UIGestureRecognizer *)gr
 {
     NSLog(@"Recognized double tap");
@@ -237,6 +208,7 @@
     [self setNeedsDisplay];
 }
 
+// action-message for TapGestureRecognizer
 - (void)tap:(UIGestureRecognizer *)gr
 {
     NSLog(@"Recognized tap");
@@ -265,10 +237,10 @@
         [[UIMenuController sharedMenuController] setMenuVisible:NO animated:YES];
     }
     
-    
     [self setNeedsDisplay];
 }
 
+// action-message for LongPressGestureRecognizer
 - (void)longPress:(UIGestureRecognizer *)gr
 {
     if (gr.state == UIGestureRecognizerStateBegan) {
@@ -286,11 +258,46 @@
     [self setNeedsDisplay];
 }
 
+// action-message for PanGestureRecognizer
+- (void)moveLine:(UIPanGestureRecognizer *)gr
+{
+    // if we haven't selected a line, don't do anything here
+    if (!self.selectedLine || [UIMenuController sharedMenuController].menuVisible) {
+        return;
+    }
+    
+    // when pan recognizer changes its position...
+    if (gr.state == UIGestureRecognizerStateChanged) {
+        NSLog(@"Pan gesture state changed");
+        
+        // how far has pan moved
+        CGPoint translation =  [gr translationInView:self];
+        
+        // add translation to current beginning and end points of line
+        CGPoint begin = self.selectedLine.begin;
+        CGPoint end = self.selectedLine.end;
+        begin.x += translation.x;
+        begin.y += translation.y;
+        end.x += translation.x;
+        end.y += translation.y;
+        
+        // set the new beginning and end points of line
+        self.selectedLine.begin = begin;
+        self.selectedLine.end = end;
+        
+        // redraw
+        [self setNeedsDisplay];
+        
+        [gr setTranslation:CGPointZero inView:self];
+    }
+}
+
 #pragma mark - UIGestureRecognizerDelegate protocol messages
 // returns YES if the recognizer will share its touches with other recognizers
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
 {
-    if (gestureRecognizer == self.moveRecognizer) {
+    if (gestureRecognizer == self.moveRecognizer && otherGestureRecognizer == self.longPressRecognizer) {
+        NSLog(@"Pan Gesture recognizer now sharing touches");
         return YES;
     }
     return NO;
