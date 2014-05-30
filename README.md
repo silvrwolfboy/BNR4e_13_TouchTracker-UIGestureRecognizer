@@ -7,13 +7,25 @@ Ch13 UIGestureRecognizer And UIMenuController
 TouchTracker app 
 - this chapter builds upon the functionality of the previous chapter's 
 TouchTracker app. 
-- strokes can be selected and deleted
-- double tapping the view clears the screen
+- strokes can be selected and deleted via a menu-item
+- double tapping the background clears the screen
+- a long press selects a stroke, which can then be moved
 
 This chapter covers : 
 
-- using UIGestureRecognizer for handling taps
+Usage of the following classes: 
+- UITapGestureRecognizer 
+- UILongPressGestureRecognizer
+- UIPanGestureRecognizer 
 - UIMenuController
+
+The following concepts : 
+- handling multiple gestures, which may interfere with one another. 
+
+- sharing touches with other gestures.  For instance, the pan gesture in 
+this app occurs within the context of a single very long press.
+
+
 
 
 

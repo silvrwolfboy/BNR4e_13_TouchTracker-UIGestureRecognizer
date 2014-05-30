@@ -9,11 +9,11 @@
 #import "BNRDrawView.h"
 #import "BNRLine.h"
 
-@interface BNRDrawView ()
-@property (nonatomic, strong) BNRLine *currentLine;
+@interface BNRDrawView () <UIGestureRecognizerDelegate>
 @property (nonatomic, strong) NSMutableDictionary *linesInProgress;
 @property (nonatomic, strong) NSMutableArray *finishedLines;
 @property (nonatomic, weak) BNRLine *selectedLine;
+@property (nonatomic, strong) UIPanGestureRecognizer *moveRecognizer;
 @end
 
 @implementation BNRDrawView
@@ -40,21 +40,33 @@
         tapRecognizer.delaysTouchesBegan = YES;
         [tapRecognizer requireGestureRecognizerToFail:doubleTapRecognizer];
         [self addGestureRecognizer:tapRecognizer];
+        
+        UILongPressGestureRecognizer *pressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self
+                                                                                                      action:@selector(longPress:)];
+        [self addGestureRecognizer:pressRecognizer];
+        
+        self.moveRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self
+                                                                      action:@selector(moveLine:)];
+        self.moveRecognizer.delegate = self;
+        // does the gesture recognizer eat UIResponder events like touchesBegan:withEvent:?
+        self.moveRecognizer.cancelsTouchesInView = NO;
+        [self addGestureRecognizer:self.moveRecognizer];
     }
     
     return self;
 }
 
-#pragma mark - Drawing methods
-- (void)strokeLine:(BNRLine *)line
+#pragma mark - Drawing and Stroke management methods
+- (void)deleteLine:(id)sender
 {
-    UIBezierPath *bp = [UIBezierPath bezierPath];
-    bp.lineWidth = 10;
-    bp.lineCapStyle = kCGLineCapRound;
+    if (!self.selectedLine)
+        return;
     
-    [bp moveToPoint:line.begin];
-    [bp addLineToPoint:line.end];
-    [bp stroke];
+    // remove line from _finishedLines
+    [self.finishedLines removeObject:self.selectedLine];
+    
+    // redraw everything
+    [self setNeedsDisplay];
 }
 
 - (void)drawRect:(CGRect)rect
@@ -103,17 +115,49 @@
     return nil;
 }
 
-- (void)deleteLine:(id)sender
+- (void)moveLine:(UIPanGestureRecognizer *)gr
 {
-    if (!self.selectedLine)
+    // if we haven't selected a line, don't do anything here
+    if (!self.selectedLine) {
         return;
+    }
     
-    // remove line from _finishedLines
-    [self.finishedLines removeObject:self.selectedLine];
-    
-    // redraw everything
-    [self setNeedsDisplay];
+    // when pan recognizer changes its position...
+    if (gr.state == UIGestureRecognizerStateChanged) {
+        // how far has pan moved
+        CGPoint translation =  [gr translationInView:self];
+        
+        // add translation to current beginning and end points of line
+        CGPoint begin = self.selectedLine.begin;
+        CGPoint end = self.selectedLine.end;
+        begin.x += translation.x;
+        begin.y += translation.y;
+        end.x += translation.x;
+        end.y += translation.y;
+        
+        // set the new beginning and end points of line
+        self.selectedLine.begin = begin;
+        self.selectedLine.end = end;
+        
+        // redraw
+        [self setNeedsDisplay];
+        
+        [gr setTranslation:CGPointZero inView:self];
+    }
 }
+
+- (void)strokeLine:(BNRLine *)line
+{
+    UIBezierPath *bp = [UIBezierPath bezierPath];
+    bp.lineWidth = 10;
+    bp.lineCapStyle = kCGLineCapRound;
+    
+    [bp moveToPoint:line.begin];
+    [bp addLineToPoint:line.end];
+    [bp stroke];
+}
+
+
 
 #pragma mark - Responder Touch events
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
@@ -178,7 +222,7 @@
     [self setNeedsDisplay];
 }
 
-#pragma mark - Responder Actions
+#pragma mark - GestureRecognizer Actions
 - (BOOL)canBecomeFirstResponder
 {
     return YES;
@@ -225,6 +269,31 @@
     [self setNeedsDisplay];
 }
 
+- (void)longPress:(UIGestureRecognizer *)gr
+{
+    if (gr.state == UIGestureRecognizerStateBegan) {
+        NSLog(@"Recognized long tap");
+        
+        CGPoint point = [gr locationInView:self];
+        self.selectedLine = [self lineAtPoint:point];
+        
+        if (self.selectedLine) {
+            [self.linesInProgress removeAllObjects];
+        }
+    } else if (gr.state == UIGestureRecognizerStateEnded) {
+        self.selectedLine = nil;
+    }
+    [self setNeedsDisplay];
+}
 
+#pragma mark - UIGestureRecognizerDelegate protocol messages
+// returns YES if the recognizer will share its touches with other recognizers
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    if (gestureRecognizer == self.moveRecognizer) {
+        return YES;
+    }
+    return NO;
+}
 
 @end
