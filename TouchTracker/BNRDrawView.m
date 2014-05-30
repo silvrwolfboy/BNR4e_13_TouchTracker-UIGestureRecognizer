@@ -13,6 +13,7 @@
 @property (nonatomic, strong) BNRLine *currentLine;
 @property (nonatomic, strong) NSMutableDictionary *linesInProgress;
 @property (nonatomic, strong) NSMutableArray *finishedLines;
+@property (nonatomic, weak) BNRLine *selectedLine;
 @end
 
 @implementation BNRDrawView
@@ -30,7 +31,15 @@
         
         UITapGestureRecognizer *doubleTapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
                                                                                            action:@selector(doubleTap:)];
+        doubleTapRecognizer.numberOfTapsRequired = 2;
+        doubleTapRecognizer.delaysTouchesBegan = YES;
         [self addGestureRecognizer:doubleTapRecognizer];
+        
+        UITapGestureRecognizer *tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                        action:@selector(tap:)];
+        tapRecognizer.delaysTouchesBegan = YES;
+        [tapRecognizer requireGestureRecognizerToFail:doubleTapRecognizer];
+        [self addGestureRecognizer:tapRecognizer];
     }
     
     return self;
@@ -57,12 +66,41 @@
         [self strokeLine:line];
     }
     
-    
     [[UIColor redColor] set];
         
     for (NSValue *key in self.linesInProgress) {
         [self strokeLine:self.linesInProgress[key]];
     }
+    
+    if (self.selectedLine) {
+        [[UIColor greenColor] set];
+        [self strokeLine:self.selectedLine];
+    }
+}
+
+// Returns a line close to a point
+- (BNRLine *)lineAtPoint:(CGPoint)p
+{
+    // loop through finished lines to find a line close to p
+    for (BNRLine *l in self.finishedLines) {
+        CGPoint start = l.begin;
+        CGPoint end = l.end;
+        
+        // check a few points on the line
+        for (float t=0.0; t <= 1.0; t += 0.5) {
+            float x = start.x + t *(end.x - start.x);
+            float y = start.y + t *(end.y - start.y);
+            
+            // if the tapped point is within 20 points, return this line
+            if (hypot(x - p.x, y - p.y) < 20.0) {
+                NSLog(@"line selected");
+                return l;
+            }
+        }
+    }
+    
+    // no line close enough
+    return nil;
 }
 
 #pragma mark - Responder Touch events
@@ -135,6 +173,16 @@
     
     [self.linesInProgress removeAllObjects];
     [self.finishedLines removeAllObjects];
+    [self setNeedsDisplay];
+}
+
+- (void)tap:(UIGestureRecognizer *)gr
+{
+    NSLog(@"Recognized tap");
+    
+    CGPoint point = [gr locationInView:self];
+    self.selectedLine = [self lineAtPoint:point];
+    
     [self setNeedsDisplay];
 }
 

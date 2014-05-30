@@ -5,15 +5,14 @@ Big Nerd Ranch's iOS Programming 4th ed, Hillegass & Conway
 Ch13 UIGestureRecognizer And UIMenuController
 
 TouchTracker app 
-- this app draws lines on the screen corresponding to finger strokes 
-- current stroke is displayed in red.  Previous strokes are displayed in 
-black. 
+- this chapter builds upon the functionality of the previous chapter's 
+TouchTracker app. 
 - strokes can be selected and deleted
 - double tapping the view clears the screen
 
 This chapter covers : 
 
-- using UIGestureRecognizer for handling gestures
+- using UIGestureRecognizer for handling taps
 - UIMenuController
 
 
